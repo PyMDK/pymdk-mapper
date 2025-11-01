@@ -17,7 +17,7 @@ import java.util.zip.ZipOutputStream;
 public class Main {
 
 	/**
-	 * Usage: java -jar renamer.jar &lt;input-file&gt; &lt;mapping-file&gt; &lt;output-file&gt;
+	 * Usage: java -jar mapper.jar &lt;input-file&gt; &lt;mapping-file&gt; &lt;output-file&gt;
 	 */
 	public static void main(String[] args) throws IOException {
 		String inputFile = args[0];
