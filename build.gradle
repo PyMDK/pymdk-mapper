@@ -1,0 +1,34 @@
+import xyz.wagyourtail.jvmdg.gradle.task.ShadeJar
+
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.jvmdowngrader' version '1.3.3'
+    id 'com.gradleup.shadow' version '9.2.2'
+}
+
+version = "1.0.0"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "org.ow2.asm:asm-commons:9.9"
+    implementation "org.ow2.asm:asm-tree:9.9"
+}
+
+jar {
+    manifest.attributes["Main-Class"] = "dev.pymdk.mapper.Main"
+    archiveClassifier = "java22"
+}
+
+tasks.register('customShadeDowngradedApi', ShadeJar) {
+    inputFile = downgradeJar.archiveFile
+}
+
+tasks.register('cleanupAfterBuild', Delete) {
+    delete files(jar.archiveFile, shadowJar.archiveFile, downgradeJar.archiveFile)
+}
+
+assemble.dependsOn customShadeDowngradedApi
+tasks.build.dependsOn cleanupAfterBuild
