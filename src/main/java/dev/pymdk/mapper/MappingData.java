@@ -6,8 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 
+import static dev.pymdk.mapper.Main.readStr;
 import static java.nio.ByteOrder.BIG_ENDIAN;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * @param classes src name -> target name
@@ -21,10 +21,9 @@ public record MappingData(HashMap<String, ClassMapping> classes) {
 		byte[] data = Files.readAllBytes(path);
 		ByteBuffer buf = ByteBuffer.wrap(data).order(BIG_ENDIAN);
 
-		int length = buf.getInt();
 		HashMap<String, ClassMapping> classes = new HashMap<>();
 
-		for (int i = 0; i < length; i++) {
+		for (int i = 0, length = buf.getInt(); i < length; i++) {
 			String sourceName = readStr(buf);
 			String targetName = readStr(buf);
 
@@ -66,11 +65,5 @@ public record MappingData(HashMap<String, ClassMapping> classes) {
 	}
 
 	public record Method(String name, String descriptor) {}
-
-	private static String readStr(ByteBuffer buf) {
-		byte[] data = new byte[buf.getInt()];
-		buf.get(data);
-		return new String(data, UTF_8);
-	}
 
 }

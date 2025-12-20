@@ -2,12 +2,15 @@ package dev.pymdk.mapper;
 
 import dev.pymdk.mapper.MappingData.ClassMapping;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 
+import java.util.ArrayList;
+
 import static org.objectweb.asm.Opcodes.H_PUTSTATIC;
 
-public record Mapper(MappingData mappings) {
+public record Mapper(MappingData mappings, AugmentationData augmentations) {
 
 	public String mapClassName(String oldName) {
 		if (oldName == null)
@@ -96,6 +99,7 @@ public record Mapper(MappingData mappings) {
 	 */
 	public void map(ClassNode classNode) {
 		ClassMapping cm = mappings.getClassMapping(classNode.name);
+		AugmentationData.ClassAugmentation ca = cm == null ? null : augmentations.classes().get(cm.name());
 
 		classNode.superName = mapClassName(classNode.superName);
 		classNode.interfaces.replaceAll(this::mapClassName);
@@ -164,13 +168,39 @@ public record Mapper(MappingData mappings) {
 			if (method.localVariables != null)
 				method.localVariables.forEach(l -> l.signature = mapDescOrSig(l.signature));
 
-			// Map method insns
+
+			// Add parameter names
+			Type[] parameterTypes = Type.getArgumentTypes(method.desc);
+			if (ca != null && parameterTypes.length != 0) {
+				AugmentationData.MethodAugmentation methodAug = ca.methods().get(new MappingData.Method(method.name, method.desc));
+				if (methodAug != null) {
+					int offset = (method.access & Opcodes.ACC_STATIC) == 0 ? 1 : 0; // this
+
+					if (method.parameters == null) {
+						method.parameters = new ArrayList<>(parameterTypes.length);
+						for (int i = 0; i < parameterTypes.length; i++)
+							method.parameters.add(new ParameterNode(null, 0));
+					}
+
+					for (int i = 0; i < parameterTypes.length; i++) {
+						String name = methodAug.parameters().get((short) (i + offset));
+
+						if (name != null)
+							method.parameters.get(i).name = name;
+
+						if (parameterTypes[i] == Type.LONG_TYPE || parameterTypes[i] == Type.DOUBLE_TYPE)
+							offset++;
+					}
+				}
+			}
+
+			// Map method instructions
 			method.instructions.forEach(this::mapInsn);
 		}
 	}
 
 	/**
-	 * Maps all targets referenced to by the instruction.
+	 * Maps all targets referenced by the instruction.
 	 */
 	private void mapInsn(AbstractInsnNode insn) {
 		switch (insn) {

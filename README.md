@@ -3,5 +3,5 @@ Applies Minecraft obfuscation mappings in [PyMDK format](https://github.com/PyMD
 
 Usage: 
 ```
-java -jar pymdk-mapper-1.0.0.jar <input-file> <mapping-file> <output-file>
+java -jar pymdk-mapper-1.0.0.jar <input-file> <mapping-file> <augmentations-file> <output-file>
 ```
