@@ -165,9 +165,14 @@ public record Mapper(MappingData mappings, AugmentationData augmentations) {
 			method.signature = mapDescOrSig(method.signature);
 			method.desc = mapDescOrSig(method.desc);
 
-			if (method.localVariables != null)
-				method.localVariables.forEach(l -> l.signature = mapDescOrSig(l.signature));
-
+			if (method.localVariables != null) {
+				LocalNameGenerator nameGen = new LocalNameGenerator();
+				method.localVariables.forEach(l -> {
+					l.signature = mapDescOrSig(l.signature);
+					l.desc = mapDescOrSig(l.desc);
+					nameGen.rename(l);
+				});
+			}
 
 			// Add parameter names
 			Type[] parameterTypes = Type.getArgumentTypes(method.desc);
@@ -219,12 +224,12 @@ public record Mapper(MappingData mappings, AugmentationData augmentations) {
 				}
 			}
 			case MethodInsnNode methodInsn -> {
-				methodInsn.desc = mapDescOrSig(methodInsn.desc);
 				ClassMapping classMapping = mappings.getClassMapping(methodInsn.owner);
 				if (classMapping != null) {
 					methodInsn.owner = classMapping.name();
 					methodInsn.name = classMapping.mapMethod(methodInsn.name, methodInsn.desc);
 				}
+				methodInsn.desc = mapDescOrSig(methodInsn.desc);
 			}
 			case InvokeDynamicInsnNode indyInsn -> {
 				// Ignores some edge cases that don't happen in Minecraft's code
