@@ -7,6 +7,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Renames local vars to their types.
+ * <p>
+ * e.g. <code>Packet $$onRead</code> -> <code>Packet packet</code>
+ */
 public class LocalNameGenerator {
 
 	private final Map<String, AtomicInteger> generatedNames = new HashMap<>();
