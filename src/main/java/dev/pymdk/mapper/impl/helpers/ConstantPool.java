@@ -17,7 +17,7 @@ import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.DESCRIPTO
 public class ConstantPool {
 
 	/**
-	 * Synthetic entry to fill and unused Utf8 / NameAndType entries.
+	 * Synthetic entry to fill any unused Utf8 / NameAndType entries.
 	 * Removing them would mean reindexing all references to following entries, so adding an empty entry is MUCH faster.
 	 */
 	static final PoolEntry DBG_UNSET = (out, i) -> out.writeClassEntry((short) 1);
@@ -282,7 +282,14 @@ public class ConstantPool {
 	 * The position of the cached value in the packed int.
 	 */
 	public enum Utf8CacheType {
+		/**
+		 * Member names without a mapping.
+		 */
 		NAME_CACHE,
+
+		/**
+		 * Mapped member descriptors.
+		 */
 		DESCRIPTOR_CACHE;
 
 		private final int shift = ordinal() * 16;
