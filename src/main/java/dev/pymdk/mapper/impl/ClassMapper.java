@@ -26,6 +26,10 @@ public class ClassMapper implements Constants {
 
 	private static final HashSet<String> UNRECOGNIZED_ATTRIBUTES = new HashSet<>();
 	private static final MappedClass UNMAPPED = new MappedClass(null, null) {
+		{
+			create();
+		}
+
 		@Override
 		public @NotNull String getName(@NotNull Mapping mapping) {
 			throw new IllegalStateException("Cannot get name of unmapped class");
@@ -131,7 +135,7 @@ public class ClassMapper implements Constants {
 					cursor += 4;
 				}
 				case CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_FIELDREF, CONSTANT_METHODREF,
-				     CONSTANT_INTERFACE_METHODREF -> cursor += 4;
+				     CONSTANT_INTERFACE_METHODREF, CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC -> cursor += 4;
 				case CONSTANT_LONG, CONSTANT_DOUBLE -> {
 					// CONSTANT_Long_info / CONSTANT_Double_info take two entries
 					cursor += 8;
@@ -222,13 +226,16 @@ public class ClassMapper implements Constants {
 					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, tags[idx] == CONSTANT_FIELDREF);
 					pool.addRefEntry(tags[idx], classIndex, newNameAndTypePoolIndex);
 				}
+
+				// Direct copy
 				case CONSTANT_LONG, CONSTANT_DOUBLE -> {
 					int startIndex = startIndices[idx];
 					int endIndex = startIndices[idx + 2];
 					pool.doubleCopyFrom(content, startIndex, endIndex - startIndex);
 					idx++;
 				}
-				case CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT -> {
+				case CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE, CONSTANT_DYNAMIC,
+				     CONSTANT_INVOKE_DYNAMIC -> {
 					int startIndex = startIndices[idx];
 					int endIndex = startIndices[idx + 1];
 					pool.copyFrom(content, startIndex, endIndex - startIndex);
@@ -333,6 +340,9 @@ public class ClassMapper implements Constants {
 		switch (attrName) {
 			case "ConstantValue", "SourceFile", "LineNumberTable", "StackMapTable", "Exceptions" -> {
 				// Doesn't contain anything that must be mapped
+			}
+			case "BootstrapMethods" -> {
+				// No need to map as Minecraft does not contain any bootstrap methods, so all entries are unobfuscated
 			}
 			case "Signature" -> {
 				short signatureIndex = readShort(cursor + 6);
