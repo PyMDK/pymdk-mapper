@@ -239,7 +239,8 @@ public class MappingEntries {
 			for (M member : this) {
 				obfMap.put(member.obfName, member);
 				imdMap.put(member.imdName, member);
-				unobfMap.put(member.unobfName, member);
+				String unobfName = member.unobfName != null ? member.unobfName : member.imdName;
+				unobfMap.put(unobfName, member);
 				if (member instanceof MappedClass cls)
 					cls.create();
 			}
@@ -267,7 +268,8 @@ public class MappingEntries {
 			for (MappedMethod method : this) {
 				obfMap.put(method.obfName + method.obfDesc, method);
 				imdMap.put(method.imdName + method.unobfDesc, method);
-				unobfMap.put(method.unobfName + method.unobfDesc, method);
+				String unobfName = method.unobfName != null ? method.unobfName : method.imdName;
+				unobfMap.put(unobfName + method.unobfDesc, method);
 			}
 		}
 
