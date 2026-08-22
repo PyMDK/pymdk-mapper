@@ -418,10 +418,10 @@ public class ClassMapper implements Constants {
 				for (int classIdx = 0; classIdx < numberOfClasses; classIdx++) {
 					short innerNameIndex = readShort(cursor + 4);
 					if (innerNameIndex != 0) {
-						pool.freeUtf8(innerNameIndex);
 						short innerClassInfoIndex = readShort(cursor);
 						MappedClass outerClassInfo = mapClass(innerClassInfoIndex);
 						if (outerClassInfo != UNMAPPED) {
+							pool.freeUtf8(innerNameIndex);
 							String name = outerClassInfo.getName(TARGET_MAPPING);
 							String innerName = name.substring(name.lastIndexOf('$') + 1);
 							overwriteAbs(cursor + 4, pool.insertUtf8(innerName));
