@@ -162,12 +162,13 @@ public class ConstantPool {
 	}
 
 	/**
-	 * Inserts a CONSTANT_Fieldref_info, CONSTANT_Methodref_info or
-	 * CONSTANT_InterfaceMethodref_info with the given data at the current cursor position.
+	 * Inserts a CONSTANT_Fieldref_info, CONSTANT_Methodref_info,
+	 * CONSTANT_InterfaceMethodref_info, CONSTANT_Dynamic_info or
+	 * CONSTANT_InvokeDynamic_info with the given data at the current cursor position.
 	 */
-	public void addRefEntry(byte tag, short classIndex, short nameAndTypeIndex) {
+	public void addShortPairEntry(byte tag, short firstIndex, short secondIndex) {
 		dbgAssert(pool[poolWriteCursor] == DBG_UNSET);
-		pool[poolWriteCursor++] = new RefEntry(tag, classIndex, nameAndTypeIndex);
+		pool[poolWriteCursor++] = new ShortPairEntry(tag, firstIndex, secondIndex);
 	}
 
 	/**
@@ -248,12 +249,13 @@ public class ConstantPool {
 	}
 
 	/**
-	 * A CONSTANT_Fieldref_info, CONSTANT_Methodref_info or CONSTANT_InterfaceMethodref_info entry.
+	 * A CONSTANT_Fieldref_info, CONSTANT_Methodref_info CONSTANT_InterfaceMethodref_info,
+	 * CONSTANT_Dynamic_info or CONSTANT_InvokeDynamic_info entry.
 	 */
-	record RefEntry(byte tag, short classIndex, short nameAndTypeIndex) implements PoolEntry {
+	record ShortPairEntry(byte tag, short firstIndex, short secondIndex) implements PoolEntry {
 		@Override
 		public void writeTo(@NotNull GrowableByteBuffer out, int index) {
-			out.writeRefEntry(tag, classIndex, nameAndTypeIndex);
+			out.writeShortPairEntry(tag, firstIndex, secondIndex);
 		}
 	}
 

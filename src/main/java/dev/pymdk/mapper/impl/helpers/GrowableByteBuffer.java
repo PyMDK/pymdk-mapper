@@ -50,20 +50,21 @@ public class GrowableByteBuffer implements Constants, FastMapper.Output {
 	 * Writes a CONSTANT_NameAndType_info entry to the current position.
 	 */
 	public void writeNameAndTypeEntry(short nameIndex, short descriptorIndex) {
-		writeRefEntry(CONSTANT_NAME_AND_TYPE, nameIndex, descriptorIndex);
+		writeShortPairEntry(CONSTANT_NAME_AND_TYPE, nameIndex, descriptorIndex);
 	}
 
 	/**
-	 * Writes a CONSTANT_NameAndType_info, CONSTANT_Fieldref_info, CONSTANT_Methodref_info
-	 * or CONSTANT_InterfaceMethodref_info entry to the current position.
+	 * Writes a CONSTANT_NameAndType_info, CONSTANT_Fieldref_info, CONSTANT_Methodref_info,
+	 * CONSTANT_InterfaceMethodref_info, CONSTANT_Dynamic_info or
+	 * CONSTANT_InvokeDynamic_info entry to the current position.
 	 */
-	public void writeRefEntry(byte type, short classIndex, short nameAndTypeIndex) {
+	public void writeShortPairEntry(byte type, short firstIndex, short secondIndex) {
 		ensureFree(5);
 		this.data[cursor++] = type;
-		this.data[cursor++] = (byte) (classIndex >>> 8);
-		this.data[cursor++] = (byte) (classIndex & 0xFF);
-		this.data[cursor++] = (byte) (nameAndTypeIndex >>> 8);
-		this.data[cursor++] = (byte) (nameAndTypeIndex & 0xFF);
+		this.data[cursor++] = (byte) (firstIndex >>> 8);
+		this.data[cursor++] = (byte) (firstIndex & 0xFF);
+		this.data[cursor++] = (byte) (secondIndex >>> 8);
+		this.data[cursor++] = (byte) (secondIndex & 0xFF);
 	}
 
 	/**

@@ -224,7 +224,30 @@ public class ClassMapper implements Constants {
 					short classIndex = readShort(startIndex + 1);
 					short nameAndTypePoolIndex = readShort(startIndex + 3);
 					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, tags[idx] == CONSTANT_FIELDREF);
-					pool.addRefEntry(tags[idx], classIndex, newNameAndTypePoolIndex);
+					pool.addShortPairEntry(tags[idx], classIndex, newNameAndTypePoolIndex);
+				}
+				case CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC -> {
+					int startIndex = startIndices[idx];
+					short bootstrapMethodAttrIndex = readShort(startIndex + 1);
+					short nameAndTypePoolIndex = readShort(startIndex + 3);
+					dbgAssert(tags[nameAndTypePoolIndex] == CONSTANT_NAME_AND_TYPE);
+
+					// Rebuild NameAndType
+					int nameAndTypeIndex = startIndices[nameAndTypePoolIndex];
+					int nameIndex = nameAndTypeIndex + 1; // position of namePoolIndex in content
+					int descIndex = nameAndTypeIndex + 3; // position of descPoolIndex in content
+					short namePoolIndex = readShort(nameIndex); // position of name entry in constant pool
+					short descPoolIndex = readShort(descIndex); // position of descriptor entry in constant pool
+
+					String name = readUtf8FromPool(namePoolIndex);
+					String desc = readUtf8FromPool(descPoolIndex);
+					short newNamePoolIndex, newDescPoolIndex;
+
+					newNamePoolIndex = pool.insertUtf8Cached(name, namePoolIndex, NAME_CACHE);
+					newDescPoolIndex = pool.insertUtf8CachedDesc(desc, false, descPoolIndex);
+
+					short newNameAndTypePoolIndex = pool.insertNameAndType(newNamePoolIndex, newDescPoolIndex);
+					pool.addShortPairEntry(tags[idx], bootstrapMethodAttrIndex, newNameAndTypePoolIndex);
 				}
 
 				// Direct copy
@@ -234,8 +257,7 @@ public class ClassMapper implements Constants {
 					pool.doubleCopyFrom(content, startIndex, endIndex - startIndex);
 					idx++;
 				}
-				case CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE, CONSTANT_DYNAMIC,
-				     CONSTANT_INVOKE_DYNAMIC -> {
+				case CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE -> {
 					int startIndex = startIndices[idx];
 					int endIndex = startIndices[idx + 1];
 					pool.copyFrom(content, startIndex, endIndex - startIndex);
