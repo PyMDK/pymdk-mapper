@@ -146,6 +146,7 @@ public class MappingEntries {
 		/**
 		 * The intermediary name of the member.
 		 * This name stays consistent for every mapping version targeting the same minecraft version.
+		 *
 		 * @see Mapping#INTERMEDIARY
 		 */
 		final String imdName;

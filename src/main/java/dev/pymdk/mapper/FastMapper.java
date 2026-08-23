@@ -29,7 +29,7 @@ public class FastMapper {
 	 * Loads mappings in PyMDK format from a file.
 	 */
 	public static void loadMappings(@NotNull Path path) throws IOException {
-		try(BufferedReader reader = Files.newBufferedReader(path)) {
+		try (BufferedReader reader = Files.newBufferedReader(path)) {
 			Collection<MappingEntries.MappedClass> mappedClasses = new Gson().fromJson(reader, new TypeToken<Collection<MappingEntries.MappedClass>>() {}.getType());
 			LowLevelMapper.classes.addAll(mappedClasses);
 			LowLevelMapper.classes.create();
@@ -38,6 +38,8 @@ public class FastMapper {
 
 	/**
 	 * Applies mappings to a class file.
+	 *
+	 * @param input The ClassFile structure, which will be mutated in-place.
 	 */
 	public static @NotNull Output mapClass(byte[] input) {
 		GrowableByteBuffer output = new GrowableByteBuffer(input.length);

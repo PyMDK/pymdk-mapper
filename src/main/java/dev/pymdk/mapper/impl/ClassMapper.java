@@ -1,12 +1,12 @@
 package dev.pymdk.mapper.impl;
 
-import dev.pymdk.mapper.impl.helpers.Constants;
 import dev.pymdk.mapper.Mapping;
 import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
 import dev.pymdk.mapper.impl.MappingEntries.MappedMember;
-import dev.pymdk.mapper.impl.helpers.ConstantPool;
-import dev.pymdk.mapper.impl.helpers.GrowableByteBuffer;
 import dev.pymdk.mapper.impl.SignatureMapper.AttributeHolder;
+import dev.pymdk.mapper.impl.helpers.ConstantPool;
+import dev.pymdk.mapper.impl.helpers.Constants;
+import dev.pymdk.mapper.impl.helpers.GrowableByteBuffer;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +14,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.DESCRIPTOR_CACHE;
-import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.NAME_CACHE;
 import static dev.pymdk.mapper.impl.LowLevelMapper.*;
 import static dev.pymdk.mapper.impl.SignatureMapper.AttributeHolder.*;
+import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.DESCRIPTOR_CACHE;
+import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.NAME_CACHE;
 
 /**
  * :D
@@ -121,17 +121,19 @@ public class ClassMapper implements Constants {
 			byte tag = content[cursor++];
 			tags[idx] = tag;
 			switch (tag) {
-				case CONSTANT_UTF8 -> cursor += readShort(cursor) + 2;
-				case CONSTANT_CLASS -> {
-					pool.freeUtf8(readShort(cursor));
-					cursor += 2;
+				case CONSTANT_UTF8 -> {
+					short length = (short) (((content[cursor++] & 0xFF) << 8) | (content[cursor++] & 0xFF));
+					String text = new String(content, cursor, length, StandardCharsets.UTF_8);
+					pool.cacheUtf8(text, (short) idx);
+					cursor += length;
 				}
-				case CONSTANT_STRING, CONSTANT_METHOD_TYPE, CONSTANT_MODULE, CONSTANT_PACKAGE -> cursor += 2;
+				case CONSTANT_CLASS, CONSTANT_STRING, CONSTANT_METHOD_TYPE, CONSTANT_MODULE, CONSTANT_PACKAGE ->
+						cursor += 2;
 				case CONSTANT_METHOD_HANDLE -> cursor += 3;
 				case CONSTANT_NAME_AND_TYPE -> {
-					// Do not free name as it may be referenced to by a CONSTANT_String_info
-					pool.freeUtf8(readShort(cursor + 2));
-					pool.freeNameAndType((short) idx);
+					short namePoolIndex = readShort(cursor);
+					short descPoolIndex = readShort(cursor + 2);
+					pool.cacheNameAndType(namePoolIndex, descPoolIndex, (short) idx);
 					cursor += 4;
 				}
 				case CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_FIELDREF, CONSTANT_METHODREF,
@@ -163,8 +165,6 @@ public class ClassMapper implements Constants {
 			for (int memberIdx = 0; memberIdx < count; memberIdx++) {
 				short nameIndex = readShort(cursor + 2);
 				short descIndex = readShort(cursor + 4);
-				pool.freeUtf8(nameIndex);
-				pool.freeUtf8(descIndex);
 				String name = readUtf8FromPool(nameIndex);
 				String desc = readUtf8FromPool(descIndex);
 
@@ -200,74 +200,36 @@ public class ClassMapper implements Constants {
 		// Apply mappings
 		for (idx = 1; idx < poolCount; idx++) {
 			switch (tags[idx]) {
-				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE -> {
-					int startIndex = startIndices[idx];
-					int endIndex = startIndices[idx + 1];
-					pool.copyIfUnset(content, startIndex, endIndex - startIndex);
-				}
+				// Map in-place
 				case CONSTANT_CLASS -> {
 					MappedClass map = mapClass((short) idx);
-					short nameIndex;
-					if (map == UNMAPPED) {
-						short index = readShort(startIndices[idx] + 1);
-						String name = readUtf8FromPool(index);
-						nameIndex = pool.insertUtf8(name);
-					} else {
+					if (map != UNMAPPED) {
 						String name = map.getName(TARGET_MAPPING);
-						nameIndex = pool.insertUtf8(name);
+						short nameIndex = pool.insertUtf8(name);
+						writeShort(startIndices[idx] + 1, nameIndex);
 					}
-
-					pool.addClassEntry(nameIndex);
 				}
 				case CONSTANT_METHODREF, CONSTANT_FIELDREF, CONSTANT_INTERFACE_METHODREF -> {
 					int startIndex = startIndices[idx];
 					short classIndex = readShort(startIndex + 1);
 					short nameAndTypePoolIndex = readShort(startIndex + 3);
 					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, tags[idx] == CONSTANT_FIELDREF);
-					pool.addShortPairEntry(tags[idx], classIndex, newNameAndTypePoolIndex);
-				}
-				case CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC -> {
-					int startIndex = startIndices[idx];
-					short bootstrapMethodAttrIndex = readShort(startIndex + 1);
-					short nameAndTypePoolIndex = readShort(startIndex + 3);
-					dbgAssert(tags[nameAndTypePoolIndex] == CONSTANT_NAME_AND_TYPE);
-
-					// Rebuild NameAndType
-					int nameAndTypeIndex = startIndices[nameAndTypePoolIndex];
-					int nameIndex = nameAndTypeIndex + 1; // position of namePoolIndex in content
-					int descIndex = nameAndTypeIndex + 3; // position of descPoolIndex in content
-					short namePoolIndex = readShort(nameIndex); // position of name entry in constant pool
-					short descPoolIndex = readShort(descIndex); // position of descriptor entry in constant pool
-
-					String name = readUtf8FromPool(namePoolIndex);
-					String desc = readUtf8FromPool(descPoolIndex);
-					short newNamePoolIndex, newDescPoolIndex;
-
-					newNamePoolIndex = pool.insertUtf8Cached(name, namePoolIndex, NAME_CACHE);
-					newDescPoolIndex = pool.insertUtf8CachedDesc(desc, false, descPoolIndex);
-
-					short newNameAndTypePoolIndex = pool.insertNameAndType(newNamePoolIndex, newDescPoolIndex);
-					pool.addShortPairEntry(tags[idx], bootstrapMethodAttrIndex, newNameAndTypePoolIndex);
+					writeShort(startIndex + 3, newNameAndTypePoolIndex);
 				}
 
 				// Direct copy
-				case CONSTANT_LONG, CONSTANT_DOUBLE -> {
-					int startIndex = startIndices[idx];
-					int endIndex = startIndices[idx + 2];
-					pool.doubleCopyFrom(content, startIndex, endIndex - startIndex);
-					idx++;
-				}
-				case CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE -> {
-					int startIndex = startIndices[idx];
-					int endIndex = startIndices[idx + 1];
-					pool.copyFrom(content, startIndex, endIndex - startIndex);
+				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE, CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC, CONSTANT_LONG,
+				     CONSTANT_DOUBLE, CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE -> {
+					// No-op
 				}
 				default -> throw new IllegalStateException("Invalid constant pool tag " + tags[idx]);
 			}
 		}
 
-		// Write new constant pool
-		output.copyFrom(content, 0, 10);
+		// Copy constant pool
+		output.copyFrom(content, 0, constantPoolEnd);
+
+		// Write new content pool
 		int constantPoolSize = pool.writeTo(output);
 		output.overwriteShort(CONSTANT_POOL_SIZE_INDEX, constantPoolSize);
 
@@ -284,19 +246,19 @@ public class ClassMapper implements Constants {
 	 * Maps a CONSTANT_Class_info entry.
 	 */
 	private @NotNull MappedClass mapClass(short classPoolIndex) {
+		if (classCache[classPoolIndex] != null)
+			return classCache[classPoolIndex];
+
 		short index = readShort(startIndices[classPoolIndex] + 1);
 		dbgAssert(tags[classPoolIndex] == CONSTANT_CLASS);
-
-		if (classCache[index] != null)
-			return classCache[index];
 
 		String name = readUtf8FromPool(index);
 		MappedClass mappedClass = LowLevelMapper.classes.get(name, SOURCE_MAPPING);
 		if (mappedClass == null)
 			// Not mapped
-			return classCache[index] = UNMAPPED;
+			return classCache[classPoolIndex] = UNMAPPED;
 
-		classCache[index] = mappedClass;
+		classCache[classPoolIndex] = mappedClass;
 		return mappedClass;
 	}
 
@@ -368,7 +330,6 @@ public class ClassMapper implements Constants {
 			}
 			case "Signature" -> {
 				short signatureIndex = readShort(cursor + 6);
-				pool.freeUtf8(signatureIndex);
 				String signature = readUtf8FromPool(signatureIndex);
 				short newSignatureIndex = pool.insertUtf8(SignatureMapper.mapSignature(signature, attributeHolder));
 				overwriteAbs(cursor + 6, newSignatureIndex);
@@ -389,7 +350,6 @@ public class ClassMapper implements Constants {
 				cursor += 8;
 				for (int varIdx = 0; varIdx < lvtLength; varIdx++) {
 					short descriptorIndex = readShort(cursor + 6);
-					pool.freeUtf8(descriptorIndex);
 
 					String descriptor = readUtf8FromPool(descriptorIndex);
 					short newDescIndex = pool.insertUtf8CachedDesc(descriptor, true, descriptorIndex);
@@ -403,7 +363,6 @@ public class ClassMapper implements Constants {
 				cursor += 8;
 				for (int varIdx = 0; varIdx < lvtLength; varIdx++) {
 					short signatureIndex = readShort(cursor + 6);
-					pool.freeUtf8(signatureIndex);
 
 					String signature = readUtf8FromPool(signatureIndex);
 					short newSignatureIndex = pool.insertUtf8(SignatureMapper.mapSignature(signature, FIELD));
@@ -421,7 +380,6 @@ public class ClassMapper implements Constants {
 						short innerClassInfoIndex = readShort(cursor);
 						MappedClass outerClassInfo = mapClass(innerClassInfoIndex);
 						if (outerClassInfo != UNMAPPED) {
-							pool.freeUtf8(innerNameIndex);
 							String name = outerClassInfo.getName(TARGET_MAPPING);
 							String innerName = name.substring(name.lastIndexOf('$') + 1);
 							overwriteAbs(cursor + 4, pool.insertUtf8(innerName));
@@ -449,6 +407,11 @@ public class ClassMapper implements Constants {
 
 	private short readShort(int cursor) {
 		return (short) (((content[cursor] & 0xFF) << 8) | (content[cursor + 1] & 0xFF));
+	}
+
+	private void writeShort(int cursor, short value) {
+		content[cursor++] = (byte) (value >>> 8 & 0xFF);
+		content[cursor] = (byte) (value & 0xFF);
 	}
 
 	private int readInt(int cursor) {
