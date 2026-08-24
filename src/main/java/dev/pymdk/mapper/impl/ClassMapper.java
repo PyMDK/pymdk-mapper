@@ -218,8 +218,11 @@ public class ClassMapper implements Constants {
 				}
 
 				// Direct copy
-				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE, CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC, CONSTANT_LONG,
-				     CONSTANT_DOUBLE, CONSTANT_STRING, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_METHOD_HANDLE -> {
+				case CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC, CONSTANT_METHOD_HANDLE, CONSTANT_METHOD_TYPE -> {
+					// No need to map as Minecraft does not contain any bootstrap methods, so all entries are unobfuscated
+				}
+				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE, CONSTANT_LONG, CONSTANT_DOUBLE, CONSTANT_STRING,
+				     CONSTANT_INTEGER, CONSTANT_FLOAT -> {
 					// No-op
 				}
 				default -> throw new IllegalStateException("Invalid constant pool tag " + tags[idx]);
