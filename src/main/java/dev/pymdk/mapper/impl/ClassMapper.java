@@ -325,7 +325,8 @@ public class ClassMapper implements Constants {
 
 		String attrName = readUtf8FromPool(attributeNameIndex);
 		switch (attrName) {
-			case "ConstantValue", "SourceFile", "LineNumberTable", "StackMapTable", "Exceptions" -> {
+			case "ConstantValue", "SourceFile", "LineNumberTable", "StackMapTable", "Exceptions", "NestHost",
+			     "NestMembers" -> {
 				// Doesn't contain anything that must be mapped
 			}
 			case "BootstrapMethods" -> {
