@@ -73,7 +73,7 @@ public class MappingEntries {
 			return null;
 		}
 
-		private @NotNull MappedClass[] getBaseClasses() {
+		public @NotNull MappedClass[] getBaseClasses() {
 			if (baseClasses != null)
 				return baseClasses;
 
