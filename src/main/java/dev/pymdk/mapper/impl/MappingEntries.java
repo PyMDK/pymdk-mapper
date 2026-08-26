@@ -185,7 +185,13 @@ public class MappingEntries {
 						return unobfName;
 					// fall-through
 				default:
-					return imdName;
+					if (imdName != null)
+						return imdName;
+
+					if (unobfName == null)
+						throw new IllegalStateException(this + " is incomplete");
+
+					return unobfName;
 			}
 		}
 
