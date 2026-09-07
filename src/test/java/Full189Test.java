@@ -27,8 +27,8 @@ public class Full189Test {
 
 		// Fetch mappings
 		Util.fetch("https://maven.pymdk.dev/dev/pymdk/mappings/1.8.9/mappings-1.8.9-mcp.json.xz",
-				compressedMappings, "XkiuyRMKBdw6KjRVOzLF5Iy4P8WS7yUa5X/34Mhn0n4=");
-		if (Files.notExists(rawMappings) || Util.checkHashFail(rawMappings, "Y29iEuqhTK2RZvhie/Ay+aPkG+/Ayrcd/hF+X76aHFk="))
+				compressedMappings, "zK8ztZ0UxhKr/Kmw8mWR8FrIrxO1LkmxdM+annA411U=");
+		if (Files.notExists(rawMappings) || Util.checkHashFail(rawMappings, "JMqZhVdaZJrghxBHoriSMSwmGRU6z3U+QufZlid+8FM="))
 			Util.decompress(compressedMappings, rawMappings);
 
 		// Fetch 1.8.9 client jar
