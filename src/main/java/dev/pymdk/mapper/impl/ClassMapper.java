@@ -1,6 +1,5 @@
 package dev.pymdk.mapper.impl;
 
-import dev.pymdk.mapper.Mapping;
 import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
 import dev.pymdk.mapper.impl.MappingEntries.MappedMember;
 import dev.pymdk.mapper.impl.SignatureMapper.AttributeHolder;
@@ -25,21 +24,13 @@ import static dev.pymdk.mapper.impl.helpers.ConstantPool.Utf8CacheType.NAME_CACH
 public class ClassMapper implements Constants {
 
 	private static final HashSet<String> UNRECOGNIZED_ATTRIBUTES = new HashSet<>();
-	private static final MappedClass UNMAPPED = new MappedClass(null, null) {
-		{
-			create();
-		}
 
-		@Override
-		public @NotNull String getName(@NotNull Mapping mapping) {
-			throw new IllegalStateException("Cannot get name of unmapped class");
-		}
-
-		@Override
-		public String toString() {
-			return "UNMAPPED";
-		}
-	};
+	private static final MappedClass UNMAPPED = new MappedClass(null, null) {{
+		create();
+	}};
+	private static final MappedClass BOOTSTRAP_MTD_OWNER = new MappedClass(null, null) {{
+		create();
+	}};
 
 	/**
 	 * The input.
@@ -216,9 +207,15 @@ public class ClassMapper implements Constants {
 					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, tags[idx] == CONSTANT_FIELDREF);
 					writeShort(startIndex + 3, newNameAndTypePoolIndex);
 				}
+				case CONSTANT_INVOKE_DYNAMIC -> {
+					int startIndex = startIndices[idx];
+					short nameAndTypePoolIndex = readShort(startIndex + 3);
+					short newNameAndTypePoolIndex = mapAndInsertNameAndType(BOOTSTRAP_MTD_OWNER, nameAndTypePoolIndex, false);
+					writeShort(startIndex + 3, newNameAndTypePoolIndex);
+				}
 
 				// Direct copy
-				case CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC, CONSTANT_METHOD_HANDLE, CONSTANT_METHOD_TYPE -> {
+				case CONSTANT_DYNAMIC, CONSTANT_METHOD_HANDLE, CONSTANT_METHOD_TYPE -> {
 					// No need to map as Minecraft does not contain any bootstrap methods, so all entries are unobfuscated
 				}
 				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE, CONSTANT_LONG, CONSTANT_DOUBLE, CONSTANT_STRING,
@@ -275,9 +272,21 @@ public class ClassMapper implements Constants {
 	 */
 	private short mapAndInsertNameAndType(short classPoolIndex, short nameAndTypePoolIndex, boolean isField) {
 		dbgAssert(tags[classPoolIndex] == CONSTANT_CLASS);
-		dbgAssert(tags[nameAndTypePoolIndex] == CONSTANT_NAME_AND_TYPE);
 
 		MappedClass mappedClass = mapClass(classPoolIndex);
+		return mapAndInsertNameAndType(mappedClass, nameAndTypePoolIndex, isField);
+	}
+
+	/**
+	 * Maps a CONSTANT_NameAndType_info entry and inserts it into the new constant pool.
+	 *
+	 * @param nameAndTypePoolIndex Constant pool index of CONSTANT_NameAndType_info entry.
+	 * @param isField              true if the CONSTANT_NameAndType_info references a field, false otherwise.
+	 * @return The position of the mapped entry.
+	 */
+	private short mapAndInsertNameAndType(MappedClass mappedClass, short nameAndTypePoolIndex, boolean isField) {
+		dbgAssert(tags[nameAndTypePoolIndex] == CONSTANT_NAME_AND_TYPE);
+
 		int nameAndTypeIndex = startIndices[nameAndTypePoolIndex];
 		int nameIndex = nameAndTypeIndex + 1; // position of namePoolIndex in content
 		int descIndex = nameAndTypeIndex + 3; // position of descPoolIndex in content
