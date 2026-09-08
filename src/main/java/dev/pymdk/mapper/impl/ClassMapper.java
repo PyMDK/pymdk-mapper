@@ -213,9 +213,15 @@ public class ClassMapper implements Constants {
 					short newNameAndTypePoolIndex = mapAndInsertNameAndType(BOOTSTRAP_MTD_OWNER, nameAndTypePoolIndex, false);
 					writeShort(startIndex + 3, newNameAndTypePoolIndex);
 				}
+				case CONSTANT_METHOD_TYPE -> {
+					int startIndex = startIndices[idx];
+					short descPoolIndex = readShort(startIndex + 1);
+					short newDescIndex = pool.insertUtf8CachedDesc(readUtf8FromPool(descPoolIndex), false, descPoolIndex);
+					writeShort(startIndex + 1, newDescIndex);
+				}
 
 				// Direct copy
-				case CONSTANT_DYNAMIC, CONSTANT_METHOD_HANDLE, CONSTANT_METHOD_TYPE -> {
+				case CONSTANT_DYNAMIC, CONSTANT_METHOD_HANDLE -> {
 					// No need to map as Minecraft does not contain any bootstrap methods, so all entries are unobfuscated
 				}
 				case CONSTANT_UTF8, CONSTANT_NAME_AND_TYPE, CONSTANT_LONG, CONSTANT_DOUBLE, CONSTANT_STRING,
