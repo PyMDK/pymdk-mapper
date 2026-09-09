@@ -84,7 +84,7 @@ public class ClassMapper implements Constants {
 		this.content = content;
 		this.output = output;
 
-		int rawPoolCount = readShort(CONSTANT_POOL_SIZE_INDEX) & 0xFFFF;
+		int rawPoolCount = readShort(CONSTANT_POOL_SIZE_OFFSET) & 0xFFFF;
 		if (rawPoolCount > Short.MAX_VALUE)
 			throw new UnsupportedOperationException("Constant pools with more than " + Short.MAX_VALUE + " entries are not supported");
 
@@ -107,7 +107,7 @@ public class ClassMapper implements Constants {
 	 */
 	public void map() {
 		// Decode content pool
-		int idx, cursor = CONSTANT_POOL_SIZE_INDEX + 2;
+		int idx, cursor = CONSTANT_POOL_SIZE_OFFSET + 2;
 		for (idx = 1; idx < poolCount; idx++) {
 			startIndices[idx] = cursor;
 			byte tag = content[cursor++];
@@ -123,9 +123,9 @@ public class ClassMapper implements Constants {
 						cursor += 2;
 				case CONSTANT_METHOD_HANDLE -> cursor += 3;
 				case CONSTANT_NAME_AND_TYPE -> {
-					short namePoolIndex = readShort(cursor);
-					short descPoolIndex = readShort(cursor + 2);
-					pool.cacheNameAndType(namePoolIndex, descPoolIndex, (short) idx);
+					short nameIndex = readShort(cursor);
+					short descIndex = readShort(cursor + 2);
+					pool.cacheNameAndType(nameIndex, descIndex, (short) idx);
 					cursor += 4;
 				}
 				case CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_FIELDREF, CONSTANT_METHODREF,
@@ -202,23 +202,23 @@ public class ClassMapper implements Constants {
 					}
 				}
 				case CONSTANT_METHODREF, CONSTANT_FIELDREF, CONSTANT_INTERFACE_METHODREF -> {
-					int startIndex = startIndices[idx];
-					short classIndex = readShort(startIndex + 1);
-					short nameAndTypePoolIndex = readShort(startIndex + 3);
-					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, tags[idx] == CONSTANT_FIELDREF);
-					writeShort(startIndex + 3, newNameAndTypePoolIndex);
+					int startCursor = startIndices[idx];
+					short classIndex = readShort(startCursor + 1);
+					short nameAndTypeIndex = readShort(startCursor + 3);
+					short newNameAndTypeIndex = mapAndInsertNameAndType(classIndex, nameAndTypeIndex, tags[idx] == CONSTANT_FIELDREF);
+					writeShort(startCursor + 3, newNameAndTypeIndex);
 				}
 				case CONSTANT_INVOKE_DYNAMIC -> {
-					int startIndex = startIndices[idx];
-					short nameAndTypePoolIndex = readShort(startIndex + 3);
-					short newNameAndTypePoolIndex = mapAndInsertNameAndType(BOOTSTRAP_MTD_OWNER, nameAndTypePoolIndex, false);
-					writeShort(startIndex + 3, newNameAndTypePoolIndex);
+					int startCursor = startIndices[idx];
+					short nameAndTypeIndex = readShort(startCursor + 3);
+					short newNameAndTypeIndex = mapAndInsertNameAndType(BOOTSTRAP_MTD_OWNER, nameAndTypeIndex, false);
+					writeShort(startCursor + 3, newNameAndTypeIndex);
 				}
 				case CONSTANT_METHOD_TYPE -> {
-					int startIndex = startIndices[idx];
-					short descPoolIndex = readShort(startIndex + 1);
-					short newDescIndex = pool.insertUtf8CachedDesc(readUtf8FromPool(descPoolIndex), false, descPoolIndex);
-					writeShort(startIndex + 1, newDescIndex);
+					int startCursor = startIndices[idx];
+					short descIndex = readShort(startCursor + 1);
+					short newDescIndex = pool.insertUtf8CachedDesc(readUtf8FromPool(descIndex), false, descIndex);
+					writeShort(startCursor + 1, newDescIndex);
 				}
 
 				// Direct copy
@@ -238,7 +238,7 @@ public class ClassMapper implements Constants {
 
 		// Write new content pool
 		int constantPoolSize = pool.writeTo(output);
-		output.overwriteShort(CONSTANT_POOL_SIZE_INDEX, constantPoolSize);
+		output.overwriteShort(CONSTANT_POOL_SIZE_OFFSET, constantPoolSize);
 
 		// Copy everything else
 		int constantPoolOutEnd = output.cursor;
@@ -252,61 +252,59 @@ public class ClassMapper implements Constants {
 	/**
 	 * Maps a CONSTANT_Class_info entry.
 	 */
-	private @NotNull MappedClass mapClass(short classPoolIndex) {
-		if (classCache[classPoolIndex] != null)
-			return classCache[classPoolIndex];
+	private @NotNull MappedClass mapClass(short classIndex) {
+		if (classCache[classIndex] != null)
+			return classCache[classIndex];
 
-		short index = readShort(startIndices[classPoolIndex] + 1);
-		dbgAssert(tags[classPoolIndex] == CONSTANT_CLASS);
+		short nameIndex = readShort(startIndices[classIndex] + 1);
+		dbgAssert(tags[classIndex] == CONSTANT_CLASS);
 
-		String name = readUtf8FromPool(index);
+		String name = readUtf8FromPool(nameIndex);
 		MappedClass mappedClass = LowLevelMapper.classes.get(name, SOURCE_MAPPING);
 		if (mappedClass == null)
 			// Not mapped
-			return classCache[classPoolIndex] = UNMAPPED;
+			return classCache[classIndex] = UNMAPPED;
 
-		classCache[classPoolIndex] = mappedClass;
+		classCache[classIndex] = mappedClass;
 		return mappedClass;
 	}
 
 	/**
 	 * Maps a CONSTANT_NameAndType_info entry and inserts it into the new constant pool.
 	 *
-	 * @param classPoolIndex       Constant pool index of CONSTANT_Class_info entry.
-	 * @param nameAndTypePoolIndex Constant pool index of CONSTANT_NameAndType_info entry.
+	 * @param classIndex       Constant pool index of CONSTANT_Class_info entry.
+	 * @param nameAndTypeIndex Constant pool index of CONSTANT_NameAndType_info entry.
 	 * @param isField              true if the CONSTANT_NameAndType_info references a field, false otherwise.
 	 * @return The position of the mapped entry.
 	 */
-	private short mapAndInsertNameAndType(short classPoolIndex, short nameAndTypePoolIndex, boolean isField) {
-		dbgAssert(tags[classPoolIndex] == CONSTANT_CLASS);
+	private short mapAndInsertNameAndType(short classIndex, short nameAndTypeIndex, boolean isField) {
+		dbgAssert(tags[classIndex] == CONSTANT_CLASS);
 
-		MappedClass mappedClass = mapClass(classPoolIndex);
-		return mapAndInsertNameAndType(mappedClass, nameAndTypePoolIndex, isField);
+		MappedClass mappedClass = mapClass(classIndex);
+		return mapAndInsertNameAndType(mappedClass, nameAndTypeIndex, isField);
 	}
 
 	/**
 	 * Maps a CONSTANT_NameAndType_info entry and inserts it into the new constant pool.
 	 *
-	 * @param nameAndTypePoolIndex Constant pool index of CONSTANT_NameAndType_info entry.
+	 * @param nameAndTypeIndex Constant pool index of CONSTANT_NameAndType_info entry.
 	 * @param isField              true if the CONSTANT_NameAndType_info references a field, false otherwise.
 	 * @return The position of the mapped entry.
 	 */
-	private short mapAndInsertNameAndType(MappedClass mappedClass, short nameAndTypePoolIndex, boolean isField) {
-		dbgAssert(tags[nameAndTypePoolIndex] == CONSTANT_NAME_AND_TYPE);
+	private short mapAndInsertNameAndType(MappedClass mappedClass, short nameAndTypeIndex, boolean isField) {
+		dbgAssert(tags[nameAndTypeIndex] == CONSTANT_NAME_AND_TYPE);
 
-		int nameAndTypeIndex = startIndices[nameAndTypePoolIndex];
-		int nameIndex = nameAndTypeIndex + 1; // position of namePoolIndex in content
-		int descIndex = nameAndTypeIndex + 3; // position of descPoolIndex in content
-		short namePoolIndex = readShort(nameIndex); // position of name entry in constant pool
-		short descPoolIndex = readShort(descIndex); // position of descriptor entry in constant pool
+		int nameAndTypeCursor = startIndices[nameAndTypeIndex];
+		short nameIndex = readShort(nameAndTypeCursor + 1);
+		short descIndex = readShort(nameAndTypeCursor + 3);
 
-		String name = readUtf8FromPool(namePoolIndex);
-		String desc = readUtf8FromPool(descPoolIndex);
-		short newNamePoolIndex, newDescPoolIndex;
+		String name = readUtf8FromPool(nameIndex);
+		String desc = readUtf8FromPool(descIndex);
+		short newNameIndex, newDescIndex;
 
 		if (mappedClass == UNMAPPED) {
-			newNamePoolIndex = pool.insertUtf8Cached(name, namePoolIndex, NAME_CACHE);
-			newDescPoolIndex = pool.insertUtf8CachedDesc(desc, isField, descPoolIndex);
+			newNameIndex = pool.insertUtf8Cached(name, nameIndex, NAME_CACHE);
+			newDescIndex = pool.insertUtf8CachedDesc(desc, isField, descIndex);
 		} else {
 			MappedMember member = null;
 			if (isField)
@@ -317,15 +315,15 @@ public class ClassMapper implements Constants {
 			}
 
 			if (member == null) {
-				newNamePoolIndex = pool.insertUtf8Cached(name, namePoolIndex, NAME_CACHE);
-				newDescPoolIndex = pool.insertUtf8CachedDesc(desc, isField, descPoolIndex);
+				newNameIndex = pool.insertUtf8Cached(name, nameIndex, NAME_CACHE);
+				newDescIndex = pool.insertUtf8CachedDesc(desc, isField, descIndex);
 			} else {
-				newNamePoolIndex = pool.insertUtf8(member.getName(TARGET_MAPPING));
-				newDescPoolIndex = pool.insertUtf8Cached(member.getDesc(TARGET_MAPPING), descPoolIndex, DESCRIPTOR_CACHE);
+				newNameIndex = pool.insertUtf8(member.getName(TARGET_MAPPING));
+				newDescIndex = pool.insertUtf8Cached(member.getDesc(TARGET_MAPPING), descIndex, DESCRIPTOR_CACHE);
 			}
 		}
 
-		return pool.insertNameAndType(newNamePoolIndex, newDescPoolIndex);
+		return pool.insertNameAndType(newNameIndex, newDescIndex);
 	}
 
 	/**
@@ -410,10 +408,10 @@ public class ClassMapper implements Constants {
 			}
 			case "EnclosingMethod" -> {
 				short classIndex = readShort(cursor + 6);
-				short nameAndTypePoolIndex = readShort(cursor + 8);
-				if (nameAndTypePoolIndex != 0) {
-					short newNameAndTypePoolIndex = mapAndInsertNameAndType(classIndex, nameAndTypePoolIndex, false);
-					overwriteAbs(cursor + 8, newNameAndTypePoolIndex);
+				short nameAndTypeIndex = readShort(cursor + 8);
+				if (nameAndTypeIndex != 0) {
+					short newNameAndTypeIndex = mapAndInsertNameAndType(classIndex, nameAndTypeIndex, false);
+					overwriteAbs(cursor + 8, newNameAndTypeIndex);
 				}
 			}
 			case "RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations" -> {
@@ -459,25 +457,25 @@ public class ClassMapper implements Constants {
 			case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 's' -> cursor + 2; // const_value_index
 			case 'e' -> {
 				// enum_const_value
-				short typeNamePoolIndex = readShort(cursor);
-				String desc = readUtf8FromPool(typeNamePoolIndex);
+				short typeNameIndex = readShort(cursor);
+				String desc = readUtf8FromPool(typeNameIndex);
 				if (desc.charAt(0) == 'L') {
 					// Map class
 					String internalName = desc.substring(1, desc.length() - 1);
 					MappedClass mappedClass = LowLevelMapper.classes.get(internalName, SOURCE_MAPPING);
 					if (mappedClass != null) {
 						String newDesc = "L" + mappedClass.getName(TARGET_MAPPING) + ";";
-						short newDescPoolIndex = pool.insertUtf8Cached(newDesc, typeNamePoolIndex, NAME_CACHE);
-						overwriteAbs(cursor + 2, newDescPoolIndex);
+						short newDescIndex = pool.insertUtf8Cached(newDesc, typeNameIndex, NAME_CACHE);
+						overwriteAbs(cursor + 2, newDescIndex);
 
 						// Map field
-						short constNamePoolIndex = readShort(cursor + 2);
-						String name = readUtf8FromPool(constNamePoolIndex);
+						short constNameIndex = readShort(cursor + 2);
+						String name = readUtf8FromPool(constNameIndex);
 						MappedField mappedField = mappedClass.getFieldRecursive(name, SOURCE_MAPPING);
 						if (mappedField != null) {
 							String newName = mappedField.getName(TARGET_MAPPING);
-							short newNamePoolIndex = pool.insertUtf8Cached(newName, constNamePoolIndex, NAME_CACHE);
-							overwriteAbs(cursor + 2, newNamePoolIndex);
+							short newNameIndex = pool.insertUtf8Cached(newName, constNameIndex, NAME_CACHE);
+							overwriteAbs(cursor + 2, newNameIndex);
 						}
 					}
 				}
@@ -486,11 +484,11 @@ public class ClassMapper implements Constants {
 			}
 			case 'c' -> {
 				// class_info_index
-				short descPoolIndex = readShort(cursor);
-				String desc = readUtf8FromPool(descPoolIndex);
+				short descIndex = readShort(cursor);
+				String desc = readUtf8FromPool(descIndex);
 				String mappedDesc = LowLevelMapper.mapStandaloneFieldDesc(desc);
-				short newDescPoolIndex = pool.insertUtf8CachedDesc(mappedDesc, true, descPoolIndex);
-				overwriteAbs(cursor, newDescPoolIndex);
+				short newDescIndex = pool.insertUtf8CachedDesc(mappedDesc, true, descIndex);
+				overwriteAbs(cursor, newDescIndex);
 				yield cursor + 2;
 			}
 			case '@' -> readAndMapAnnotation(cursor); // annotation_value
@@ -528,7 +526,7 @@ public class ClassMapper implements Constants {
 	 *
 	 * @param index The index of the entry in the source constant pool.
 	 */
-	private @NotNull String readUtf8FromPool(int index) {
+	private @NotNull String readUtf8FromPool(short index) {
 		dbgAssert(tags[index] == CONSTANT_UTF8);
 
 		int cursor = startIndices[index] + 1;

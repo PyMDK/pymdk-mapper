@@ -25,6 +25,6 @@ public interface Constants {
 	byte CONSTANT_MODULE = 19;
 	byte CONSTANT_PACKAGE = 20;
 
-	int CONSTANT_POOL_SIZE_INDEX = 8;
+	int CONSTANT_POOL_SIZE_OFFSET = 8;
 
 }
