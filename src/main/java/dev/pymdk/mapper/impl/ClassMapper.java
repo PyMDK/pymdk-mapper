@@ -1,6 +1,7 @@
 package dev.pymdk.mapper.impl;
 
 import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
+import dev.pymdk.mapper.impl.MappingEntries.MappedField;
 import dev.pymdk.mapper.impl.MappingEntries.MappedMember;
 import dev.pymdk.mapper.impl.SignatureMapper.AttributeHolder;
 import dev.pymdk.mapper.impl.helpers.ConstantPool;
@@ -415,6 +416,13 @@ public class ClassMapper implements Constants {
 					overwriteAbs(cursor + 8, newNameAndTypePoolIndex);
 				}
 			}
+			case "RuntimeVisibleAnnotations", "RuntimeInvisibleAnnotations" -> {
+				short numAnnotations = readShort(cursor + 6);
+				cursor += 8;
+				for (int i = 0; i < numAnnotations; i++)
+					cursor = readAndMapAnnotation(cursor);
+			}
+			case "AnnotationDefault" -> readAndMapElementValue(cursor + 6);
 			default -> {
 				if (UNRECOGNIZED_ATTRIBUTES.add(attrName))
 					System.err.println("Unimplemented attribute " + attrName);
@@ -422,6 +430,81 @@ public class ClassMapper implements Constants {
 		}
 
 		return attributeLength + 6;
+	}
+
+	/**
+	 * Maps an annotation entry.
+	 *
+	 * @return The new cursor position.
+	 */
+	private int readAndMapAnnotation(int cursor) {
+		short numElementValuePairs = readShort(cursor + 2);
+		cursor += 4;
+
+		for (int j = 0; j < numElementValuePairs; j++)
+			cursor = readAndMapElementValue(cursor + 2);
+
+		return cursor;
+	}
+
+	/**
+	 * Maps an element_value entry.
+	 *
+	 * @return The new cursor position.
+	 */
+	private int readAndMapElementValue(int cursor) {
+		byte tag = content[cursor++];
+		// Only map classes
+		return switch (tag) {
+			case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 's' -> cursor + 2; // const_value_index
+			case 'e' -> {
+				// enum_const_value
+				short typeNamePoolIndex = readShort(cursor);
+				String desc = readUtf8FromPool(typeNamePoolIndex);
+				if (desc.charAt(0) == 'L') {
+					// Map class
+					String internalName = desc.substring(1, desc.length() - 1);
+					MappedClass mappedClass = LowLevelMapper.classes.get(internalName, SOURCE_MAPPING);
+					if (mappedClass != null) {
+						String newDesc = "L" + mappedClass.getName(TARGET_MAPPING) + ";";
+						short newDescPoolIndex = pool.insertUtf8Cached(newDesc, typeNamePoolIndex, NAME_CACHE);
+						overwriteAbs(cursor + 2, newDescPoolIndex);
+
+						// Map field
+						short constNamePoolIndex = readShort(cursor + 2);
+						String name = readUtf8FromPool(constNamePoolIndex);
+						MappedField mappedField = mappedClass.getFieldRecursive(name, SOURCE_MAPPING);
+						if (mappedField != null) {
+							String newName = mappedField.getName(TARGET_MAPPING);
+							short newNamePoolIndex = pool.insertUtf8Cached(newName, constNamePoolIndex, NAME_CACHE);
+							overwriteAbs(cursor + 2, newNamePoolIndex);
+						}
+					}
+				}
+
+				yield cursor + 4;
+			}
+			case 'c' -> {
+				// class_info_index
+				short descPoolIndex = readShort(cursor);
+				String desc = readUtf8FromPool(descPoolIndex);
+				String mappedDesc = LowLevelMapper.mapStandaloneFieldDesc(desc);
+				short newDescPoolIndex = pool.insertUtf8CachedDesc(mappedDesc, true, descPoolIndex);
+				overwriteAbs(cursor, newDescPoolIndex);
+				yield cursor + 2;
+			}
+			case '@' -> readAndMapAnnotation(cursor); // annotation_value
+			case '[' -> {
+				// array_value
+				short numValues = readShort(cursor);
+				cursor += 2;
+				for (int i = 0; i < numValues; i++)
+					cursor = readAndMapElementValue(cursor);
+
+				yield cursor;
+			}
+			default -> throw new IllegalStateException("Illegal ElementValue tag " + tag);
+		};
 	}
 
 	private short readShort(int cursor) {

@@ -25,7 +25,7 @@ public class LowLevelMapper {
 	}
 
 	/**
-	 * Maps a field descriptor.
+	 * Maps a field (or return) descriptor.
 	 */
 	public static @NotNull String mapStandaloneFieldDesc(@NotNull String desc) {
 		if (desc.charAt(0) == '[')
