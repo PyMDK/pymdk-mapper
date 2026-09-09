@@ -28,7 +28,7 @@ public class MappingEntries {
 	 */
 	public static class MappedClass extends MappedMember {
 
-		String[] unobfBaseClasses;
+		private String[] unobfBaseClasses;
 		private transient MappedClass[] baseClasses;
 
 		public MappedList<MappedField> fields;
@@ -73,6 +73,20 @@ public class MappingEntries {
 			return null;
 		}
 
+		public void setBaseClasses(@NotNull MappedClass[] baseClasses) {
+			this.baseClasses = baseClasses;
+		}
+
+		public void setBaseClasses(@NotNull String[] unobfBaseClasses) {
+			this.unobfBaseClasses = unobfBaseClasses;
+			baseClasses = new MappedClass[unobfBaseClasses.length];
+			for (int i = 0; i < unobfBaseClasses.length; i++) {
+				baseClasses[i] = LowLevelMapper.classes.get(unobfBaseClasses[i], UNOBFUSCATED);
+				if (baseClasses[i] == null)
+					throw new IllegalStateException("BC " + unobfBaseClasses[i] + " null");
+			}
+		}
+
 		public @NotNull MappedClass[] getBaseClasses() {
 			if (baseClasses != null)
 				return baseClasses;
@@ -82,13 +96,7 @@ public class MappingEntries {
 				return baseClasses;
 			}
 
-			baseClasses = new MappedClass[unobfBaseClasses.length];
-			for (int i = 0; i < unobfBaseClasses.length; i++) {
-				baseClasses[i] = LowLevelMapper.classes.get(unobfBaseClasses[i], UNOBFUSCATED);
-				if (baseClasses[i] == null)
-					throw new IllegalStateException("BC " + unobfBaseClasses[i] + " null");
-			}
-
+			setBaseClasses(unobfBaseClasses);
 			return baseClasses;
 		}
 
