@@ -455,33 +455,7 @@ public class ClassMapper implements Constants {
 		// Only map classes
 		return switch (tag) {
 			case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z', 's' -> cursor + 2; // const_value_index
-			case 'e' -> {
-				// enum_const_value
-				short typeNameIndex = readShort(cursor);
-				String desc = readUtf8FromPool(typeNameIndex);
-				if (desc.charAt(0) == 'L') {
-					// Map class
-					String internalName = desc.substring(1, desc.length() - 1);
-					MappedClass mappedClass = LowLevelMapper.classes.get(internalName, SOURCE_MAPPING);
-					if (mappedClass != null) {
-						String newDesc = "L" + mappedClass.getName(TARGET_MAPPING) + ";";
-						short newDescIndex = pool.insertUtf8Cached(newDesc, typeNameIndex, NAME_CACHE);
-						overwriteAbs(cursor + 2, newDescIndex);
-
-						// Map field
-						short constNameIndex = readShort(cursor + 2);
-						String name = readUtf8FromPool(constNameIndex);
-						MappedField mappedField = mappedClass.getFieldRecursive(name, SOURCE_MAPPING);
-						if (mappedField != null) {
-							String newName = mappedField.getName(TARGET_MAPPING);
-							short newNameIndex = pool.insertUtf8Cached(newName, constNameIndex, NAME_CACHE);
-							overwriteAbs(cursor + 2, newNameIndex);
-						}
-					}
-				}
-
-				yield cursor + 4;
-			}
+			case 'e' -> cursor + 4; // enum_const_value
 			case 'c' -> {
 				// class_info_index
 				short descIndex = readShort(cursor);
