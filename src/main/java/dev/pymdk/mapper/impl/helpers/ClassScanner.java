@@ -3,6 +3,7 @@ package dev.pymdk.mapper.impl.helpers;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static dev.pymdk.mapper.impl.LowLevelMapper.dbgAssert;
 
@@ -15,7 +16,7 @@ public class ClassScanner implements Constants {
 	 * Collects the references classes by reading the constant pool.
 	 */
 	public static List<String> getClassReferences(byte[] content) {
-		List<String> classes = new ArrayList<>();
+		List<Short> classes = new ArrayList<>();
 
 		int rawPoolCount = readShort(content, CONSTANT_POOL_SIZE_OFFSET) & 0xFFFF;
 		if (rawPoolCount > Short.MAX_VALUE)
@@ -26,8 +27,8 @@ public class ClassScanner implements Constants {
 		byte[] tags = new byte[poolCount];
 
 		// Decode content pool
-		int idx, cursor = CONSTANT_POOL_SIZE_OFFSET + 2;
-		for (idx = 1; idx < poolCount; idx++) {
+		int cursor = CONSTANT_POOL_SIZE_OFFSET + 2;
+		for (short idx = 1; idx < poolCount; idx++) {
 			startIndices[idx] = cursor;
 			byte tag = content[cursor++];
 			tags[idx] = tag;
@@ -38,7 +39,7 @@ public class ClassScanner implements Constants {
 				}
 				case CONSTANT_CLASS -> {
 					cursor += 2;
-					classes.add(readClass(content, startIndices, tags, (short) idx));
+					classes.add(idx);
 				}
 				case CONSTANT_STRING, CONSTANT_METHOD_TYPE, CONSTANT_MODULE, CONSTANT_PACKAGE -> cursor += 2;
 				case CONSTANT_METHOD_HANDLE -> cursor += 3;
@@ -55,7 +56,9 @@ public class ClassScanner implements Constants {
 			}
 		}
 
-		return classes;
+		return classes.stream()
+				.map(s -> readClass(content, startIndices, tags, s))
+				.collect(Collectors.toList());
 	}
 
 	private static String readClass(byte[] content, int[] startIndices, byte[] tags, short classIndex) {
