@@ -8,15 +8,29 @@ import java.util.stream.Collectors;
 import static dev.pymdk.mapper.impl.LowLevelMapper.dbgAssert;
 
 /**
- * Collects the references classes by reading the constant pool.
+ * Collects metadata from class definitions.
  */
 public class ClassScanner implements Constants {
 
 	/**
-	 * Collects the references classes by reading the constant pool.
+	 * Collects all referenced classes by reading the constant pool.
 	 */
 	public static List<String> getClassReferences(byte[] content) {
-		List<Short> classes = new ArrayList<>();
+		return collectStringReferences(content, CONSTANT_CLASS);
+	}
+
+	/**
+	 * Collects all string literals by reading the constant pool.
+	 */
+	public static List<String> getStrings(byte[] content) {
+		return collectStringReferences(content, CONSTANT_STRING);
+	}
+
+	/**
+	 * Collects CONSTANT_STRING / CONSTANT_CLASS entries.
+	 */
+	private static List<String> collectStringReferences(byte[] content, byte tagNeedle) {
+		List<Short> entries = new ArrayList<>();
 
 		int rawPoolCount = readShort(content, CONSTANT_POOL_SIZE_OFFSET) & 0xFFFF;
 		if (rawPoolCount > Short.MAX_VALUE)
@@ -32,16 +46,16 @@ public class ClassScanner implements Constants {
 			startIndices[idx] = cursor;
 			byte tag = content[cursor++];
 			tags[idx] = tag;
+			if (tag == tagNeedle)
+				entries.add(idx);
+
 			switch (tag) {
 				case CONSTANT_UTF8 -> {
 					short length = (short) (((content[cursor++] & 0xFF) << 8) | (content[cursor++] & 0xFF));
 					cursor += length;
 				}
-				case CONSTANT_CLASS -> {
-					cursor += 2;
-					classes.add(idx);
-				}
-				case CONSTANT_STRING, CONSTANT_METHOD_TYPE, CONSTANT_MODULE, CONSTANT_PACKAGE -> cursor += 2;
+				case CONSTANT_CLASS, CONSTANT_STRING, CONSTANT_METHOD_TYPE, CONSTANT_MODULE, CONSTANT_PACKAGE ->
+						cursor += 2;
 				case CONSTANT_METHOD_HANDLE -> cursor += 3;
 				case CONSTANT_NAME_AND_TYPE, CONSTANT_INTEGER, CONSTANT_FLOAT, CONSTANT_FIELDREF, CONSTANT_METHODREF,
 				     CONSTANT_INTERFACE_METHODREF, CONSTANT_DYNAMIC, CONSTANT_INVOKE_DYNAMIC -> cursor += 4;
@@ -56,13 +70,12 @@ public class ClassScanner implements Constants {
 			}
 		}
 
-		return classes.stream()
-				.map(s -> readClass(content, startIndices, tags, s))
+		return entries.stream()
+				.map(s -> readString(content, startIndices, tags, s))
 				.collect(Collectors.toList());
 	}
 
-	private static String readClass(byte[] content, int[] startIndices, byte[] tags, short classIndex) {
-		dbgAssert(tags[classIndex] == CONSTANT_CLASS);
+	private static String readString(byte[] content, int[] startIndices, byte[] tags, short classIndex) {
 		short nameIndex = readShort(content, startIndices[classIndex] + 1);
 
 		//noinspection DuplicatedCode
