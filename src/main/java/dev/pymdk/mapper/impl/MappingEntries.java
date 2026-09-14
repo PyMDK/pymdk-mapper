@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -247,11 +248,15 @@ public class MappingEntries {
 			super(0);
 		}
 
+		public void create() {
+			create(this);
+		}
+
 		/**
 		 * populates the cache maps.
 		 */
-		public void create() {
-			for (M member : this) {
+		public void create(Collection<M> source) {
+			for (M member : source) {
 				obfMap.put(member.obfName, member);
 				imdMap.put(member.imdName, member);
 				String unobfName = member.unobfName != null ? member.unobfName : member.imdName;

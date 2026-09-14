@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import dev.pymdk.mapper.impl.ClassMapper;
 import dev.pymdk.mapper.impl.LowLevelMapper;
-import dev.pymdk.mapper.impl.MappingEntries;
+import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
 import dev.pymdk.mapper.impl.helpers.GrowableByteBuffer;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,9 +30,9 @@ public class FastMapper {
 	 */
 	public static void loadMappings(@NotNull Path path) throws IOException {
 		try (BufferedReader reader = Files.newBufferedReader(path)) {
-			Collection<MappingEntries.MappedClass> mappedClasses = new Gson().fromJson(reader, new TypeToken<Collection<MappingEntries.MappedClass>>() {}.getType());
+			Collection<MappedClass> mappedClasses = new Gson().fromJson(reader, new TypeToken<Collection<MappedClass>>() {}.getType());
 			LowLevelMapper.classes.addAll(mappedClasses);
-			LowLevelMapper.classes.create();
+			LowLevelMapper.classes.create(mappedClasses);
 		}
 	}
 
