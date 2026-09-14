@@ -1,7 +1,6 @@
 package dev.pymdk.mapper.impl;
 
 import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
-import dev.pymdk.mapper.impl.MappingEntries.MappedField;
 import dev.pymdk.mapper.impl.MappingEntries.MappedMember;
 import dev.pymdk.mapper.impl.SignatureMapper.AttributeHolder;
 import dev.pymdk.mapper.impl.helpers.ConstantPool;
@@ -340,7 +339,8 @@ public class ClassMapper implements Constants {
 		String attrName = readUtf8FromPool(attributeNameIndex);
 		switch (attrName) {
 			case "ConstantValue", "SourceFile", "LineNumberTable", "StackMapTable", "Exceptions", "NestHost",
-			     "NestMembers" -> {
+			     "NestMembers", "Record", "RuntimeVisibleTypeAnnotations", "RuntimeInvisibleTypeAnnotations",
+			     "RuntimeInvisibleParameterAnnotations", "MethodParameters" -> {
 				// Doesn't contain anything that must be mapped
 			}
 			case "BootstrapMethods" -> {
