@@ -2,6 +2,7 @@ package dev.pymdk.mapper.impl;
 
 import dev.pymdk.mapper.Mapping;
 import dev.pymdk.mapper.impl.MappingEntries.MappedClass;
+import dev.pymdk.mapper.impl.MappingEntries.MappedClassList;
 import dev.pymdk.mapper.impl.MappingEntries.MappedList;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,7 +14,7 @@ public class LowLevelMapper {
 	public static Mapping SOURCE_MAPPING;
 	public static Mapping TARGET_MAPPING;
 
-	public static final MappedList<MappedClass> classes = new MappedList<>();
+	public static final MappedList<MappedClass> classes = new MappedClassList();
 
 	/**
 	 * Maps a descriptor.

@@ -232,20 +232,27 @@ public class MappingEntries {
 		/**
 		 * A member storage where the key is the obfuscated name.
 		 */
-		public transient final Map<String, M> obfMap = new HashMap<>();
+		public transient final Map<String, M> obfMap;
 
 		/**
 		 * A member storage where the key is the intermediary name.
 		 */
-		public transient final Map<String, M> imdMap = new HashMap<>();
+		public transient final Map<String, M> imdMap;
 
 		/**
 		 * A member storage where the key is the unobfuscated name.
 		 */
-		public transient final Map<String, M> unobfMap = new HashMap<>();
+		public transient final Map<String, M> unobfMap;
 
 		public MappedList() {
+			this(new HashMap<>(), new HashMap<>(), new HashMap<>());
+		}
+
+		protected MappedList(Map<String, M> obfMap, Map<String, M> imdMap, Map<String, M> unobfMap) {
 			super(0);
+			this.obfMap = obfMap;
+			this.imdMap = imdMap;
+			this.unobfMap = unobfMap;
 		}
 
 		public void create() {
@@ -272,6 +279,19 @@ public class MappingEntries {
 				case INTERMEDIARY -> imdMap.get(key);
 				default -> unobfMap.get(key);
 			};
+		}
+	}
+
+	/**
+	 * A {@link MappedList} where <code>imdMap = unobfMap</code>.
+	 */
+	protected static class MappedClassList extends MappedList<MappedClass> {
+		public MappedClassList() {
+			this(new HashMap<>(), new HashMap<>());
+		}
+
+		private MappedClassList(Map<String, MappedClass> obfMap, Map<String, MappedClass> unobfMap) {
+			super(obfMap, unobfMap, unobfMap);
 		}
 	}
 
