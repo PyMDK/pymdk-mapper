@@ -125,7 +125,7 @@ public class MappingEntries {
 	 */
 	public static class MappedField extends MappedMember {
 
-		MappedField(String obf, String imd) {
+		public MappedField(String obf, String imd) {
 			super(obf, imd);
 		}
 
@@ -136,7 +136,7 @@ public class MappingEntries {
 	 */
 	public static class MappedMethod extends MappedMember {
 
-		MappedMethod(String obf, String imd) {
+		public MappedMethod(String obf, String imd) {
 			super(obf, imd);
 		}
 
@@ -150,7 +150,7 @@ public class MappingEntries {
 		/**
 		 * The obfuscated name of the member.
 		 */
-		final String obfName;
+		protected final String obfName;
 
 		/**
 		 * The intermediary name of the member.
@@ -158,24 +158,24 @@ public class MappingEntries {
 		 *
 		 * @see Mapping#INTERMEDIARY
 		 */
-		final String imdName;
+		protected final String imdName;
 
 		/**
 		 * The unobfuscated name of the member.
 		 */
-		String unobfName;
+		protected String unobfName;
 
 		/**
 		 * The obfuscated descriptor of the member.
 		 */
-		String obfDesc;
+		protected String obfDesc;
 
 		/**
 		 * The unobfuscated descriptor of the member.
 		 */
-		String unobfDesc;
+		protected String unobfDesc;
 
-		MappedMember(String obfName, String imdName) {
+		protected MappedMember(String obfName, String imdName) {
 			this.obfName = obfName;
 			this.imdName = imdName;
 		}
